@@ -175,6 +175,16 @@ def nat_percent(data, col_list):
 
     '''
     data_total = {}
+    for region in data.keys():
+        for column in col_list:
+            data_total[column] = data_total.get(column, 0) + data[region][column]
+    total = 0
+    for column in data_total.keys():
+        total += data_total[column]
+    for column in data_total.keys():
+        data_total[column] /= total
+        data_total[column] = round(data_total[column], 2)
+    return data_total
 
 def nat_difference(sat_data, census_data):
     '''
@@ -196,6 +206,17 @@ def nat_difference(sat_data, census_data):
     '''
     nat_diff = {}
 
+    for region in census_data.keys():
+        for column in census_data[region].keys():
+            nat_diff[column] = nat_diff.get(column, 0) + census_data[region][column]
+
+    for region in sat_data.keys():
+        for column in sat_data[region].keys():
+            nat_diff[column] = nat_diff.get(column, 0) - sat_data[region][column]
+
+    return nat_diff
+
+
 def main():
     # read in the data
     census_data = read_csv("census_data.csv")
@@ -216,8 +237,16 @@ def main():
     # calculate the max and mins using `min_max`
 
     # extra credit here
+    col_list = ["AMERICAN INDIAN/ALASKA NATIVE", "ASIAN", "BLACK", 
+    "HISPANIC/LATINO", "NATIVE HAWAIIAN/OTH PACF ISL",
+    "OTHER", "TWO OR MORE RACES", "WHITE"]
+    nat_percent_dict = nat_percent(sat_data, col_list)
 
-    pass
+    print(nat_percent_dict)
+
+    nat_difference_dict = nat_difference(sat_data, census_data)
+    print(nat_difference_dict)
+
 
 main()
 
