@@ -31,12 +31,12 @@ def read_csv(file):
     data = {}
     with open(file, 'r') as fileObj:
         lines = fileObj.readlines() 
-        columns = lines[0].split(',')
+        columns = lines[0].rstrip().split(',')
         for line in lines[1:]:
-            cells = line.split(',')
+            cells = line.rstrip().split(',')
             data[cells[0]] = {}
-            for i in range(1, len(cells[1:])):
-                data[cells[0]][columns[i]] = cells[i]
+            for i in range(1, len(cells)):
+                data[cells[0]][columns[i]] = int(cells[i])
     return data
 
 
@@ -57,6 +57,15 @@ def get_percent(data):
         for each demographic for each region in the data set
     '''
     pcts = {}
+    for region in data.keys():
+        total = data[region]["Region Totals"]
+        pcts[region] = {}
+        for demographic in data[region].keys():
+            pct = data[region][demographic] / total
+            pct = round(pct, 2)
+            pcts[region][demographic] = pct
+    return pcts
+
 
 def get_difference(sat_data, census_data):
     '''
@@ -189,8 +198,12 @@ def nat_difference(sat_data, census_data):
 
 def main():
     # read in the data
-
+    census_data = read_csv("census_data.csv")
+    sat_data = read_csv("sat_data.csv")
+    
     # compute demographic percentages
+    census_data_pct = get_percent(census_data)
+    sat_data_pct = get_percent(sat_data)
 
     # compute the difference between test taker and state demographics
 
@@ -245,6 +258,28 @@ class HWTest(unittest.TestCase):
     '''
     Create test functions for the functions you wrote here!
     '''
+    # testing the read_csv funtion
+    def test_read_csv(self):
+        self.assertEqual(len(self.sat_data), 4, 
+        "Testing that sat_data has the proper amount of region dictionaries")
+
+        self.assertEqual(len(self.census_data), 4, 
+        "Testing that census_data has the proper amount of region dictionaries")
+
+        self.assertEqual(len(self.census_data['midwest']), 9, 
+        "Testing that sat_data regions have the proper amount of demographics")
+
+        self.assertEqual(len(self.sat_data['west']), 10, 
+        "Testing that sat_data regions have the proper amount of demographics")
+
+        self.assertEqual(self.census_data["west"]["WHITE"], 34893748,
+        "Testing that census_data region dictionaries have proper values")
+
+        self.assertEqual(self.sat_data["west"]["WHITE"], 76360,
+        "Testing that sat_data region dictionaries have proper values")
+
+    def test_get_percent(self):
+        pass
 
     # testing the nat_pct extra credit function
     def test_nat_percent(self):
