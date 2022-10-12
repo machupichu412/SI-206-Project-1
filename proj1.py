@@ -308,7 +308,12 @@ class HWTest(unittest.TestCase):
         "Testing that sat_data region dictionaries have proper values")
 
     def test_get_percent(self):
-        pass
+        self.assertAlmostEqual(get_percent(self.census_data)["south"]["AMERICAN INDIAN/ALASKA NATIVE"], 0.01,
+        "Testing get_percent on self.census_data for the American Indian/Alaska Native demographic in the South region")
+
+        self.assertAlmostEqual(get_percent(self.sat_data)["west"]["WHITE"], 0.35,
+        "Testing get_percent on self.census_data for the White demographic in the West region")
+
 
     # testing the nat_pct extra credit function
     def test_nat_percent(self):
