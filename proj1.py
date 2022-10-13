@@ -5,7 +5,7 @@
 # Your name: Matthew Yeh
 # Your student id: 77783379
 # Your email: mattyeh@umich.edu
-# List who you have worked with on this project:
+# List who you have worked with on this project: Brian Cho
 
 import io
 import sys
@@ -61,9 +61,10 @@ def get_percent(data):
         total = data[region]["Region Totals"]
         pcts[region] = {}
         for demographic in data[region].keys():
-            pct = data[region][demographic] / total
-            pct = round(pct, 2)
-            pcts[region][demographic] = pct
+            if demographic != "Region Totals":
+                pct = data[region][demographic] / total
+                pct = round(pct * 100, 2)
+                pcts[region][demographic] = pct
     return pcts
 
 
@@ -104,7 +105,12 @@ def csv_out(data, file_name):
     -------
         None. (Doesn't return anything)
     '''
-    pass
+    data_headers = data.keys()
+
+    with open(file_name, 'w') as file:
+        writer = csv.DictWriter(file, fieldnames = data_headers)
+        writer.writeheader()
+        writer.writerows(data)
 
 def max_min_mutate(data, col_list):
     # Do not change the code in this function
@@ -174,17 +180,22 @@ def nat_percent(data, col_list):
         dictionary of the national demographic percentages
 
     '''
-    data_total = {}
+    data_totals = {}
+    total = 0
     for region in data.keys():
         for column in col_list:
-            data_total[column] = data_total.get(column, 0) + data[region][column]
-    total = 0
-    for column in data_total.keys():
-        total += data_total[column]
-    for column in data_total.keys():
-        data_total[column] /= total
-        data_total[column] = round(data_total[column], 2)
-    return data_total
+            if column == "Region Totals":
+                total += data[region][column]
+            else:
+                data_totals[column] = data_totals.get(column, 0) + data[region][column]
+    
+    if total == 0:
+        for column in data_totals.keys():
+            total += data_totals[column]
+    for column in data_totals.keys():       
+        data_totals[column] /= total
+        data_totals[column] = round(data_totals[column] * 100, 2)
+    return data_totals
 
 def nat_difference(sat_data, census_data):
     '''
@@ -206,13 +217,11 @@ def nat_difference(sat_data, census_data):
     '''
     nat_diff = {}
 
-    for region in census_data.keys():
-        for column in census_data[region].keys():
-            nat_diff[column] = nat_diff.get(column, 0) + census_data[region][column]
+    for column in sat_data.keys():
+        nat_diff[column] = nat_diff.get(column, 0) + sat_data[column]
 
-    for region in sat_data.keys():
-        for column in sat_data[region].keys():
-            nat_diff[column] = nat_diff.get(column, 0) - sat_data[region][column]
+    for column in census_data.keys():
+            nat_diff[column] = round(nat_diff.get(column, 0) - census_data[column], 2)
 
     return nat_diff
 
@@ -239,14 +248,17 @@ def main():
     # extra credit here
     col_list = ["AMERICAN INDIAN/ALASKA NATIVE", "ASIAN", "BLACK", 
     "HISPANIC/LATINO", "NATIVE HAWAIIAN/OTH PACF ISL",
-    "OTHER", "TWO OR MORE RACES", "WHITE"]
-    nat_percent_dict = nat_percent(sat_data, col_list)
+    "OTHER", "TWO OR MORE RACES", "WHITE", "Region Totals"]
+    sat_nat_percent = nat_percent(sat_data, col_list)
+    census_nat_percent = nat_percent(census_data, col_list)
 
-    print(nat_percent_dict)
+    print(sat_nat_percent)
 
-    nat_difference_dict = nat_difference(sat_data, census_data)
+    nat_difference_dict = nat_difference(sat_nat_percent, census_nat_percent)
     print(nat_difference_dict)
 
+    print(nat_percent({"region":{"demo":5,"Region Totals":10}},["demo", "Region Totals"]))
+    print(nat_difference({"demo":0.53, "Region Totals": 1},{"demo":0.5, "Region Totals": 1}))
 
 main()
 
@@ -308,10 +320,10 @@ class HWTest(unittest.TestCase):
         "Testing that sat_data region dictionaries have proper values")
 
     def test_get_percent(self):
-        self.assertAlmostEqual(get_percent(self.census_data)["south"]["AMERICAN INDIAN/ALASKA NATIVE"], 0.01,
+        self.assertAlmostEqual(get_percent(self.census_data)["south"]["AMERICAN INDIAN/ALASKA NATIVE"], 1.0,
         "Testing get_percent on self.census_data for the American Indian/Alaska Native demographic in the South region")
 
-        self.assertAlmostEqual(get_percent(self.sat_data)["west"]["WHITE"], 0.35,
+        self.assertAlmostEqual(get_percent(self.sat_data)["west"]["WHITE"], 35.0,
         "Testing get_percent on self.census_data for the White demographic in the West region")
 
 
