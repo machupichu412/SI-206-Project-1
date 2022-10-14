@@ -87,6 +87,12 @@ def get_difference(sat_data, census_data):
         the dictionary of the percent differences
     '''
     pct_dif = {}
+    for region_key in census_data:
+        pct_dif[region_key] = {}
+        for demo_key in census_data[region_key]:
+            diff = abs(round(census_data[region_key][demo_key] - sat_data[region_key][demo_key], 2))
+            pct_dif[region_key][demo_key] = diff
+    return pct_dif
 
 def csv_out(data, file_name):
     '''
@@ -105,12 +111,13 @@ def csv_out(data, file_name):
     -------
         None. (Doesn't return anything)
     '''
-    data_headers = data.keys()
-
-    with open(file_name, 'w') as file:
-        writer = csv.DictWriter(file, fieldnames = data_headers)
+    with open(file_name, 'w') as csvfile:
+        field_name = ['Region'] + list(data['midwest'].keys())
+        writer = csv.DictWriter(csvfile, fieldnames = field_name)
         writer.writeheader()
-        writer.writerows(data)
+        for region,row in data.items():
+            row['Region'] = region
+            writer.writerow(row)
 
 def max_min_mutate(data, col_list):
     # Do not change the code in this function
@@ -158,6 +165,28 @@ def max_min(data):
         a triple nested dictionary
     '''
     max_min = {}
+    max_min["max"] = {}
+    max_min["min"] = {}
+    for demographic in data.keys(): 
+        region_counts = list(data[demographic].items())
+        region_counts.sort(key = lambda item: item[1], reverse = True)
+        max_region_count = region_counts[0]
+        max_region = max_region_count[0]
+        max_count = max_region_count[1]
+        max_min["max"][demographic] = {}
+        max_min["max"][demographic][max_region] = max_count
+
+    for demographic in data.keys(): 
+        region_counts = list(data[demographic].items())
+        region_counts.sort(key = lambda item: item[1], reverse = False)
+        min_region_count = region_counts[0]
+        min_region = min_region_count[0]
+        min_count = min_region_count[1]
+        max_min["min"][demographic] = {}
+        max_min["min"][demographic][min_region] = min_count
+
+    return max_min
+        
 
 def nat_percent(data, col_list):
     '''
@@ -186,15 +215,17 @@ def nat_percent(data, col_list):
         for column in col_list:
             if column == "Region Totals":
                 total += data[region][column]
+                data_totals[column] = data_totals.get(column, 0) + data[region][column]
             else:
                 data_totals[column] = data_totals.get(column, 0) + data[region][column]
     
     if total == 0:
         for column in data_totals.keys():
             total += data_totals[column]
-    for column in data_totals.keys():       
-        data_totals[column] /= total
-        data_totals[column] = round(data_totals[column] * 100, 2)
+    for column in data_totals.keys():
+        if column != "Region Totals":       
+            data_totals[column] /= total
+            data_totals[column] = round(data_totals[column] * 100, 2)
     return data_totals
 
 def nat_difference(sat_data, census_data):
@@ -217,11 +248,13 @@ def nat_difference(sat_data, census_data):
     '''
     nat_diff = {}
 
-    for column in sat_data.keys():
-        nat_diff[column] = nat_diff.get(column, 0) + sat_data[column]
-
     for column in census_data.keys():
-            nat_diff[column] = round(nat_diff.get(column, 0) - census_data[column], 2)
+        if column != "Region Totals":
+            nat_diff[column] = nat_diff.get(column, 0) + census_data[column]
+
+    for column in sat_data.keys():
+        if column != "Region Totals":
+            nat_diff[column] = abs(round(nat_diff.get(column, 0) - sat_data[column], 2))
 
     return nat_diff
 
@@ -230,20 +263,25 @@ def main():
     # read in the data
     census_data = read_csv("census_data.csv")
     sat_data = read_csv("sat_data.csv")
-    
+
     # compute demographic percentages
     census_data_pct = get_percent(census_data)
     sat_data_pct = get_percent(sat_data)
 
     # compute the difference between test taker and state demographics
+    pct_dif_dict = get_difference(sat_data_pct, census_data_pct)
 
     # output the csv
+    csv_out(pct_dif_dict, 'proj1-yeh.csv')
 
     # create a list from the keys of inner dict
+    col_list = list(pct_dif_dict["midwest"].keys())
 
     # mutate the data using the provided 'min_max_mutate' function
+    mutated = max_min_mutate(pct_dif_dict, col_list)
 
     # calculate the max and mins using `min_max`
+    max_min_val = max_min(mutated)
 
     # extra credit here
     col_list = ["AMERICAN INDIAN/ALASKA NATIVE", "ASIAN", "BLACK", 
@@ -252,13 +290,7 @@ def main():
     sat_nat_percent = nat_percent(sat_data, col_list)
     census_nat_percent = nat_percent(census_data, col_list)
 
-    print(sat_nat_percent)
-
     nat_difference_dict = nat_difference(sat_nat_percent, census_nat_percent)
-    print(nat_difference_dict)
-
-    print(nat_percent({"region":{"demo":5,"Region Totals":10}},["demo", "Region Totals"]))
-    print(nat_difference({"demo":0.53, "Region Totals": 1},{"demo":0.5, "Region Totals": 1}))
 
 main()
 
@@ -304,28 +336,50 @@ class HWTest(unittest.TestCase):
         self.assertEqual(len(self.sat_data), 4, 
         "Testing that sat_data has the proper amount of region dictionaries")
 
+    def test2_read_csv(self):
         self.assertEqual(len(self.census_data), 4, 
         "Testing that census_data has the proper amount of region dictionaries")
 
+    def test3_read_csv(self):
         self.assertEqual(len(self.census_data['midwest']), 9, 
         "Testing that sat_data regions have the proper amount of demographics")
 
+    def test4_read_csv(self):
         self.assertEqual(len(self.sat_data['west']), 10, 
         "Testing that sat_data regions have the proper amount of demographics")
 
+    def test5_read_csv(self):
         self.assertEqual(self.census_data["west"]["WHITE"], 34893748,
         "Testing that census_data region dictionaries have proper values")
 
+    def test6_read_csv(self):
         self.assertEqual(self.sat_data["west"]["WHITE"], 76360,
         "Testing that sat_data region dictionaries have proper values")
 
+    # testing the get_percent function
     def test_get_percent(self):
-        self.assertAlmostEqual(get_percent(self.census_data)["south"]["AMERICAN INDIAN/ALASKA NATIVE"], 1.0,
+        self.assertAlmostEqual(get_percent(self.census_data)["south"]["AMERICAN INDIAN/ALASKA NATIVE"], 0.69,
         "Testing get_percent on self.census_data for the American Indian/Alaska Native demographic in the South region")
-
-        self.assertAlmostEqual(get_percent(self.sat_data)["west"]["WHITE"], 35.0,
+    
+    def test2_get_percent(self):
+        self.assertAlmostEqual(get_percent(self.sat_data)["west"]["WHITE"], 34.53,
         "Testing get_percent on self.census_data for the White demographic in the West region")
 
+    # testing the max_min function
+    def test_max_min(self):
+        self.assertEqual(self.max_min_val["max"]["ASIAN"], {"northeast": 4.68},
+        "Testing that max_min properly finds the region with the maximum Asian percentage difference")
+
+    def test2_max_min(self):
+        self.assertEqual(self.max_min_val["min"]["ASIAN"], {"midwest": 3.11},
+        "Testing that max_min properly finds the region with the minimum Asian percentage difference")
+
+    # testing the get_difference function
+    def test_get_difference(self):
+        self.assertAlmostEqual(get_difference(self.sat_pct,self.census_pct)["northeast"]["ASIAN"], 4.68)
+
+    def test2_get_difference(self):
+        self.assertAlmostEqual(get_difference(self.sat_pct,self.census_pct)["west"]["BLACK"], 1.02)
 
     # testing the nat_pct extra credit function
     def test_nat_percent(self):
